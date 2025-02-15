@@ -16,3 +16,7 @@ Meanwhile, the compiled output files will be generated in the `bin` folder by de
 ## Dependency Management
 
 The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+
+
+this application uses databse called MongoDb to store it's data you need first to download the MongoDb compass applicaton so you can link it with the code 
+
