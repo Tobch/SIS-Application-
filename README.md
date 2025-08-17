@@ -1,6 +1,6 @@
 ## Getting Started
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+To be able to run this Project you need to add the jar file to your classpath in Vs code then you will be able to connect to the Mongodb databse 
 
 ## Folder Structure
 
@@ -19,4 +19,5 @@ The `JAVA PROJECTS` view allows you to manage your dependencies. More details ca
 
 
 this application uses databse called MongoDb to store it's data you need first to download the MongoDb compass applicaton so you can link it with the code 
+
 
