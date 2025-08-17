@@ -1,0 +1,18 @@
+{
+    "mdb.presetConnections": [
+        {
+            "name": "Preset Connection",
+            "connectionString": "mongodb://localhost:27017"
+        }
+    ],
+    "java.project.sourcePaths": [
+        "src",
+        "lib"
+    ],
+    "java.project.referencedLibraries": [
+        "d:\\asu\\summer 25\\SIS-Application--main\\lib\\slf4j-simple-2.0.13.jar",
+        "d:\\asu\\summer 25\\SIS-Application--main\\lib\\mongodb-driver-sync-4.11.1.jar",
+        "d:\\asu\\summer 25\\SIS-Application--main\\lib\\mongodb-driver-core-4.11.1.jar",
+        "d:\\asu\\summer 25\\SIS-Application--main\\lib\\bson-4.11.1.jar"
+    ]
+}
