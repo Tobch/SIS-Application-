@@ -7,6 +7,10 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 
 import java.util.*;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+
 public class SISApplication {
     private static final String ADMIN_ID = "12345";
     private static final String DATABASE_NAME = "sis_database";
@@ -55,7 +59,7 @@ public class SISApplication {
                 .append("address", address)
                 .append("contact", contact)
                 .append("courses", new ArrayList<>());
-    
+
         studentsCollection.insertOne(studentDoc);
         System.out.println("Student created successfully with ID: " + studentId);
     }
@@ -319,7 +323,7 @@ public void updateStudent(String studentId) {
     private void displayRegisteredCourses(String studentId) {
         Document studentDoc = studentsCollection.find(new Document("_id", studentId)).first();
         if (studentDoc != null) {
-            List<String> courses = studentDoc.getList("courses", String.class);
+            java.util.List<String> courses = studentDoc.getList("courses", String.class);
             if (courses != null && !courses.isEmpty()) {
                 System.out.println("Registered Courses for Student " + studentId + ":");
                 for (String courseName : courses) {
@@ -415,7 +419,7 @@ public void updateStudent(String studentId) {
         if (studentDoc != null) {
             String studentId = studentDoc.getString("_id");
             // Check if the student is registered for the course
-            List<String> courses = studentDoc.getList("courses", String.class);
+            java.util.List<String> courses = studentDoc.getList("courses", String.class);
             if (courses != null && courses.contains(courseName)) {
                 // Remove the course from the student's list of registered courses
                 studentsCollection.updateOne(
@@ -463,10 +467,10 @@ public void updateStudent(String studentId) {
         Document studentDoc = studentsCollection.find(new Document("_id", studentId)).first();
         if (studentDoc != null) {
             String studentName = studentDoc.getString("name");
-            List<Document> gradeDocs = gradesCollection.find(new Document("studentId", studentId)).into(new ArrayList<>());
+            java.util.List<Document> gradeDocs = gradesCollection.find(new Document("studentId", studentId)).into(new ArrayList<>());
             if (!gradeDocs.isEmpty()) {
                 System.out.println("Grades for Student: " + studentName);
-                List<Document> coursesWithGrades = new ArrayList<>();
+                java.util.List<Document> coursesWithGrades = new ArrayList<>();
                 for (Document gradeDoc : gradeDocs) {
                     String courseName = gradeDoc.getString("courseName");
                     Double grade = gradeDoc.getDouble("grade");
@@ -512,7 +516,7 @@ public void updateStudent(String studentId) {
     private void calculateAndDisplayGPA(String studentId) {
         Document studentDoc = studentsCollection.find(new Document("_id", studentId)).first();
         if (studentDoc != null) {
-            List<String> courses = studentDoc.getList("courses", String.class);
+            java.util.List<String> courses = studentDoc.getList("courses", String.class);
             if (courses != null && !courses.isEmpty()) {
                 double totalGradePoints = 0.0;
                 int totalHours = 0;
@@ -597,7 +601,7 @@ public void updateStudent(String studentId) {
         // Ask the admin to add courses to the department
         System.out.println("Add courses to the department:");
         boolean addMoreCourses = true;
-        List<String> courses = new ArrayList<>();
+        java.util.List<String> courses = new ArrayList<>();
         while (addMoreCourses) {
             System.out.print("Enter course name: ");
             String courseName = scanner.nextLine();
@@ -638,7 +642,7 @@ public void updateStudent(String studentId) {
             // Prompt the admin to update courses if needed
             System.out.print("Do you want to update courses for this department? (yes/no): ");
             String choice = scanner.nextLine();
-            List<String> courses = new ArrayList<>();
+            java.util.List<String> courses = new ArrayList<>();
             if (choice.equalsIgnoreCase("yes")) {
                 System.out.println("Enter new courses for the department:");
                 boolean addMoreCourses = true;
@@ -731,7 +735,7 @@ public void updateStudent(String studentId) {
     public void studentOptions() {
         boolean loggedInExit = false;
         while (!loggedInExit) {
-            System.out.println("\nStudent Options:");
+            System.out.println("Student Options:");
             System.out.println("1. Display Student Information");
             System.out.println("2. Display all the Registered Courses ");
             System.out.println("3. View Grades");
@@ -775,7 +779,7 @@ public void updateStudent(String studentId) {
    public void instructorOptions() {
     boolean loggedInExit = false;
     while (!loggedInExit) {
-        System.out.println("\nInstructor Options:");
+        System.out.println("Instructor Options:");
         System.out.println("1. Edit Student Information");
         System.out.println("2. retreive Student ID");
         System.out.println("3. Show all the Courses");
@@ -860,7 +864,7 @@ public void updateStudent(String studentId) {
     public void adminOptions() {
         boolean loggedInExit = false;
         while (!loggedInExit) {
-            System.out.println("\nAdmin Options:");
+            System.out.println("Admin Options:");
             System.out.println("1. Create Instructor");
             System.out.println("2. Edit Instructor Information");
             System.out.println("3. Remove Instructor");
@@ -1011,5 +1015,597 @@ public void updateStudent(String studentId) {
         }
 
         scanner.close();
+    }
+}
+
+/*
+ * GUI wrapper class.
+ * - This class was added to provide a Swing-based GUI for the existing SISApplication
+ * - The original SISApplication class above was left unchanged (no removals or edits to its logic).
+ * - The GUI uses its own MongoDB connection and implements similar CRUD operations so that users
+ *   can interact with the same MongoDB collections via a graphical interface. This avoids modifying
+ *   the original console-based methods which rely on Scanner input.
+ */
+class SISApplicationGUI {
+    private static final String DATABASE_NAME = "sis_database";
+
+    private MongoCollection<Document> studentsCollection;
+    private MongoCollection<Document> instructorsCollection;
+    private MongoCollection<Document> coursesCollection;
+    private MongoCollection<Document> gradesCollection;
+    private MongoCollection<Document> departmentsCollection;
+
+    // GUI fields
+    private JFrame frame;
+    private JTextArea outputAreaStudent;
+    private JTextArea outputAreaCourse;
+    private JTextArea outputAreaInstructor;
+    private JTextArea outputAreaGrade;
+    private JTextArea outputAreaDepartment;
+
+    private JTabbedPane tabs;                       // made a field to allow role toggling
+    private enum Role { NONE, STUDENT, INSTRUCTOR, ADMIN }
+    private Role currentRole = Role.NONE;
+    private String loggedInUserId = null;
+    private static final String ADMIN_ID = "12345"; // keep in sync with console admin id
+
+    public SISApplicationGUI() {
+        connectToDb();
+        createAndShowGUI();
+    }
+
+    private void connectToDb() {
+        ConnectionString connectionString = new ConnectionString("mongodb://localhost:27017");
+        MongoClientSettings settings = MongoClientSettings.builder().applyConnectionString(connectionString).build();
+        com.mongodb.client.MongoClient mongoClient = MongoClients.create(settings);
+        MongoDatabase database = mongoClient.getDatabase(DATABASE_NAME);
+        studentsCollection = database.getCollection("students");
+        instructorsCollection = database.getCollection("instructors");
+        coursesCollection = database.getCollection("courses");
+        gradesCollection = database.getCollection("grades");
+        departmentsCollection = database.getCollection("departments");
+    }
+
+    private void createAndShowGUI() {
+        frame = new JFrame("SIS Application GUI");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(900, 600);
+
+        tabs = new JTabbedPane();
+
+        tabs.addTab("Students", createStudentPanel());
+        tabs.addTab("Instructors", createInstructorPanel());
+        tabs.addTab("Courses", createCoursePanel());
+        tabs.addTab("Grades", createGradePanel());
+        tabs.addTab("Departments", createDepartmentPanel());
+
+        // Initially disable all tabs until login
+        for (int i = 0; i < tabs.getTabCount(); i++) {
+            tabs.setEnabledAt(i, false);
+        }
+
+        JPanel loginPanel = createLoginPanel();
+
+        frame.getContentPane().add(loginPanel, BorderLayout.NORTH);
+        frame.getContentPane().add(tabs, BorderLayout.CENTER);
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+    }
+
+    private JPanel createStudentPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        JPanel form = new JPanel(new GridLayout(6, 2, 6, 6));
+        JTextField nameField = new JTextField();
+        JTextField dobField = new JTextField();
+        JTextField addressField = new JTextField();
+        JTextField contactField = new JTextField();
+        JTextField idField = new JTextField();
+
+        form.add(new JLabel("Name:")); form.add(nameField);
+        form.add(new JLabel("Date of Birth:")); form.add(dobField);
+        form.add(new JLabel("Address:")); form.add(addressField);
+        form.add(new JLabel("Contact:")); form.add(contactField);
+        form.add(new JLabel("Student ID (for lookup/update/delete):")); form.add(idField);
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton createBtn = new JButton("Create Student");
+        JButton readBtn = new JButton("Read by ID");
+        JButton updateBtn = new JButton("Update by ID");
+        JButton deleteBtn = new JButton("Delete by Name");
+        JButton listBtn = new JButton("List All Students");
+
+        buttons.add(createBtn); buttons.add(readBtn); buttons.add(updateBtn); buttons.add(deleteBtn); buttons.add(listBtn);
+
+        outputAreaStudent = new JTextArea(12, 60);
+        outputAreaStudent.setEditable(false);
+        JScrollPane scroll = new JScrollPane(outputAreaStudent);
+
+        panel.add(form, BorderLayout.NORTH);
+        panel.add(buttons, BorderLayout.CENTER);
+        panel.add(scroll, BorderLayout.SOUTH);
+
+        createBtn.addActionListener(e -> {
+            if (currentRole != Role.ADMIN) { JOptionPane.showMessageDialog(frame, "Only admins can create students."); return; }
+            String name = nameField.getText().trim();
+            String dob = dobField.getText().trim();
+            String address = addressField.getText().trim();
+            String contact = contactField.getText().trim();
+            if (name.isEmpty()) { JOptionPane.showMessageDialog(frame, "Name is required."); return; }
+            createStudentFromGUI(name, dob, address, contact);
+            outputAreaStudent.setText("Created student: " + name + "");
+        });
+
+        readBtn.addActionListener(e -> {
+            String id = idField.getText().trim();
+            if (id.isEmpty()) { JOptionPane.showMessageDialog(frame, "Student ID is required for lookup."); return; }
+            // allow student to read only their own record
+            if (currentRole == Role.STUDENT && !id.equals(loggedInUserId)) { JOptionPane.showMessageDialog(frame, "Students can only view their own record."); return; }
+            outputAreaStudent.setText(readStudentById(id));
+        });
+
+        updateBtn.addActionListener(e -> {
+            if (currentRole == Role.STUDENT) { JOptionPane.showMessageDialog(frame, "Students cannot update records."); return; }
+            if (currentRole == Role.INSTRUCTOR) { JOptionPane.showMessageDialog(frame, "Instructors cannot update student personal info here."); return; }
+            String id = idField.getText().trim();
+            if (id.isEmpty()) { JOptionPane.showMessageDialog(frame, "Student ID is required for update."); return; }
+            String name = nameField.getText().trim();
+            String dob = dobField.getText().trim();
+            String address = addressField.getText().trim();
+            String contact = contactField.getText().trim();
+            updateStudentById(id, name, dob, address, contact);
+            outputAreaStudent.setText("Updated student: " + id + "");
+        });
+
+        deleteBtn.addActionListener(e -> {
+            if (currentRole != Role.ADMIN) { JOptionPane.showMessageDialog(frame, "Only admins can delete students."); return; }
+            String name = nameField.getText().trim();
+            if (name.isEmpty()) { JOptionPane.showMessageDialog(frame, "Name is required for deletion."); return; }
+            deleteStudentByName(name);
+            outputAreaStudent.setText("Deleted student with name: " + name + "");
+        });
+
+        listBtn.addActionListener(e -> {
+            if (currentRole == Role.STUDENT) { JOptionPane.showMessageDialog(frame, "Students cannot list all students."); return; }
+            outputAreaStudent.setText(listAllStudents());
+        });
+
+        return panel;
+    }
+
+    private JPanel createInstructorPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        JPanel form = new JPanel(new GridLayout(4, 2, 6, 6));
+        JTextField nameField = new JTextField();
+        JTextField contactField = new JTextField();
+        JTextField emailField = new JTextField();
+        JTextField lookupField = new JTextField();
+
+        form.add(new JLabel("Name:")); form.add(nameField);
+        form.add(new JLabel("Contact:")); form.add(contactField);
+        form.add(new JLabel("Email:")); form.add(emailField);
+        form.add(new JLabel("Instructor Name (for lookup/delete):")); form.add(lookupField);
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton createBtn = new JButton("Create Instructor");
+        JButton readBtn = new JButton("Read Instructor");
+        JButton deleteBtn = new JButton("Delete Instructor");
+        JButton listBtn = new JButton("List All Instructors");
+        buttons.add(createBtn); buttons.add(readBtn); buttons.add(deleteBtn); buttons.add(listBtn);
+
+        outputAreaInstructor = new JTextArea(12, 60); outputAreaInstructor.setEditable(false);
+
+        createBtn.addActionListener(e -> {
+            if (currentRole != Role.ADMIN) { JOptionPane.showMessageDialog(frame, "Only admins can create instructors."); return; }
+            if (nameField.getText().trim().isEmpty()) { JOptionPane.showMessageDialog(frame, "Name required"); return; }
+            createInstructorFromGUI(nameField.getText().trim(), contactField.getText().trim(), emailField.getText().trim());
+            outputAreaInstructor.setText("Instructor created: " + nameField.getText().trim());
+        });
+        readBtn.addActionListener(e -> outputAreaInstructor.setText(readInstructorByName(lookupField.getText().trim())));
+        deleteBtn.addActionListener(e -> { if (currentRole!=Role.ADMIN) { JOptionPane.showMessageDialog(frame, "Only admins can delete instructors."); return; } deleteInstructorByName(lookupField.getText().trim()); outputAreaInstructor.setText("Deleted instructor: " + lookupField.getText().trim()); });
+        listBtn.addActionListener(e -> outputAreaInstructor.setText(listAllInstructors()));
+
+        panel.add(form, BorderLayout.NORTH);
+        panel.add(buttons, BorderLayout.CENTER);
+        panel.add(new JScrollPane(outputAreaInstructor), BorderLayout.SOUTH);
+        return panel;
+    }
+
+    private JPanel createCoursePanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        JPanel form = new JPanel(new GridLayout(6,2,6,6));
+        JTextField nameField = new JTextField();
+        JTextField codeField = new JTextField();
+        JTextField creditsField = new JTextField();
+        JTextField hoursField = new JTextField();
+        JTextField lookupField = new JTextField();
+
+        form.add(new JLabel("Course Name:")); form.add(nameField);
+        form.add(new JLabel("Code:")); form.add(codeField);
+        form.add(new JLabel("Credits:")); form.add(creditsField);
+        form.add(new JLabel("Hours:")); form.add(hoursField);
+        form.add(new JLabel("Course Code (lookup/delete):")); form.add(lookupField);
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton createBtn = new JButton("Create Course");
+        JButton readBtn = new JButton("Read by Code");
+        JButton deleteBtn = new JButton("Delete by Code");
+        JButton listBtn = new JButton("List All Courses");
+        JButton registerBtn = new JButton("Register Student to Course");
+        buttons.add(createBtn); buttons.add(readBtn); buttons.add(deleteBtn); buttons.add(listBtn); buttons.add(registerBtn);
+
+        outputAreaCourse = new JTextArea(12,60); outputAreaCourse.setEditable(false);
+
+        createBtn.addActionListener(e -> {
+            if (currentRole != Role.ADMIN) { JOptionPane.showMessageDialog(frame, "Only admins can create courses."); return; }
+            try {
+                String name = nameField.getText().trim();
+                String code = codeField.getText().trim();
+                int credits = Integer.parseInt(creditsField.getText().trim());
+                int hours = Integer.parseInt(hoursField.getText().trim());
+                createCourseFromGUI(name, code, credits, hours);
+                outputAreaCourse.setText("Created course: " + name + " (" + code + ")");
+            } catch (Exception ex) { JOptionPane.showMessageDialog(frame, "Check fields (credits/hours must be integers)."); }
+        });
+
+        readBtn.addActionListener(e -> outputAreaCourse.setText(readCourseByCode(lookupField.getText().trim())));
+        deleteBtn.addActionListener(e -> { if (currentRole!=Role.ADMIN) { JOptionPane.showMessageDialog(frame, "Only admins can delete courses."); return; } deleteCourseByCode(lookupField.getText().trim()); outputAreaCourse.setText("Deleted if existed: " + lookupField.getText().trim()); });
+        listBtn.addActionListener(e -> outputAreaCourse.setText(listAllCourses()));
+
+        registerBtn.addActionListener(e -> {
+            if (currentRole==Role.NONE) { JOptionPane.showMessageDialog(frame, "Please login first."); return; }
+            JPanel p = new JPanel(new GridLayout(3,2));
+            JTextField sid = new JTextField(); JTextField sname = new JTextField(); JTextField cname = new JTextField();
+            p.add(new JLabel("Student ID:")); p.add(sid);
+            p.add(new JLabel("Student Name:")); p.add(sname);
+            p.add(new JLabel("Course Name:")); p.add(cname);
+            int res = JOptionPane.showConfirmDialog(frame, p, "Register Student to Course", JOptionPane.OK_CANCEL_OPTION);
+            if (res == JOptionPane.OK_OPTION) {
+                registerStudentToCourse(sid.getText().trim(), cname.getText().trim(), sname.getText().trim());
+                outputAreaCourse.setText("Attempted registration of " + sname.getText().trim() + " to " + cname.getText().trim());
+            }
+        });
+
+        panel.add(form, BorderLayout.NORTH);
+        panel.add(buttons, BorderLayout.CENTER);
+        panel.add(new JScrollPane(outputAreaCourse), BorderLayout.SOUTH);
+        return panel;
+    }
+
+    private JPanel createGradePanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        JPanel form = new JPanel(new GridLayout(5,2,6,6));
+        JTextField studentIdField = new JTextField();
+        JTextField studentNameField = new JTextField();
+        JTextField courseIdField = new JTextField();
+        JTextField courseNameField = new JTextField();
+        JTextField gradeField = new JTextField();
+
+        form.add(new JLabel("Student Name:")); form.add(studentNameField);
+        form.add(new JLabel("Student ID:")); form.add(studentIdField);
+        form.add(new JLabel("Course ID:")); form.add(courseIdField);
+        form.add(new JLabel("Course Name:")); form.add(courseNameField);
+        form.add(new JLabel("Grade (number):")); form.add(gradeField);
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton assignBtn = new JButton("Assign Grade");
+        JButton viewBtn = new JButton("View Grades by Student ID");
+        buttons.add(assignBtn); buttons.add(viewBtn);
+
+        outputAreaGrade = new JTextArea(12,60); outputAreaGrade.setEditable(false);
+
+        assignBtn.addActionListener(e -> {
+            if (currentRole==Role.STUDENT) { JOptionPane.showMessageDialog(frame, "Students cannot assign grades."); return; }
+            try {
+                String sname = studentNameField.getText().trim();
+                String sid = studentIdField.getText().trim();
+                String cid = courseIdField.getText().trim();
+                String cname = courseNameField.getText().trim();
+                double g = Double.parseDouble(gradeField.getText().trim());
+                createGradeFromGUI(sname, sid, cid, cname, g);
+                outputAreaGrade.setText("Assigned grade " + g + " to " + sname + " for " + cname);
+            } catch (Exception ex) { JOptionPane.showMessageDialog(frame, "Check inputs. Grade must be a number."); }
+        });
+
+        viewBtn.addActionListener(e -> {
+            String sid = studentIdField.getText().trim();
+            if (sid.isEmpty()) { JOptionPane.showMessageDialog(frame, "Student ID is required."); return; }
+            if (currentRole==Role.STUDENT && !sid.equals(loggedInUserId)) { JOptionPane.showMessageDialog(frame, "Students can only view their own grades."); return; }
+            outputAreaGrade.setText(readGradeByStudentId(sid));
+        });
+
+        panel.add(form, BorderLayout.NORTH);
+        panel.add(buttons, BorderLayout.CENTER);
+        panel.add(new JScrollPane(outputAreaGrade), BorderLayout.SOUTH);
+        return panel;
+    }
+
+    private JPanel createDepartmentPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        JPanel form = new JPanel(new GridLayout(3,2,6,6));
+        JTextField nameField = new JTextField();
+        JTextField courseField = new JTextField();
+        JTextField lookupField = new JTextField();
+
+        form.add(new JLabel("Department Name:")); form.add(nameField);
+        form.add(new JLabel("One Course to Add (use comma to add many):")); form.add(courseField);
+        form.add(new JLabel("Department Name (lookup/delete):")); form.add(lookupField);
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton createBtn = new JButton("Create Department");
+        JButton readBtn = new JButton("Read Department");
+        JButton deleteBtn = new JButton("Delete Department");
+        buttons.add(createBtn); buttons.add(readBtn); buttons.add(deleteBtn);
+
+        outputAreaDepartment = new JTextArea(12,60); outputAreaDepartment.setEditable(false);
+
+        createBtn.addActionListener(e -> {
+            if (currentRole != Role.ADMIN) { JOptionPane.showMessageDialog(frame, "Only admins can create departments."); return; }
+            String name = nameField.getText().trim();
+            if (name.isEmpty()) { JOptionPane.showMessageDialog(frame, "Name required"); return; }
+            String courses = courseField.getText().trim();
+            createDepartmentFromGUI(name, courses);
+            outputAreaDepartment.setText("Created department: " + name);
+        });
+        readBtn.addActionListener(e -> outputAreaDepartment.setText(readDepartmentByName(lookupField.getText().trim())));
+        deleteBtn.addActionListener(e -> { if (currentRole!=Role.ADMIN) { JOptionPane.showMessageDialog(frame, "Only admins can delete departments."); return; } deleteDepartmentByName(lookupField.getText().trim()); outputAreaDepartment.setText("Deleted: " + lookupField.getText().trim()); });
+
+        panel.add(form, BorderLayout.NORTH);
+        panel.add(buttons, BorderLayout.CENTER);
+        panel.add(new JScrollPane(outputAreaDepartment), BorderLayout.SOUTH);
+        return panel;
+    }
+
+    // --- Login panel and role enforcement ---
+    private JPanel createLoginPanel() {
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        String[] roles = new String[] { "Student", "Instructor", "Admin" };
+        JComboBox<String> roleBox = new JComboBox<>(roles);
+        JTextField idField = new JTextField(12);
+        JButton loginBtn = new JButton("Login");
+        JButton logoutBtn = new JButton("Logout");
+        logoutBtn.setEnabled(false);
+
+        p.add(new JLabel("Role:"));
+        p.add(roleBox);
+        p.add(new JLabel("ID:"));
+        p.add(idField);
+        p.add(loginBtn);
+        p.add(logoutBtn);
+
+        loginBtn.addActionListener(e -> {
+            String selected = (String) roleBox.getSelectedItem();
+            String id = idField.getText().trim();
+            boolean ok = false;
+
+            if (selected.equals("Admin")) {
+                if (id.equals(ADMIN_ID)) {
+                    currentRole = Role.ADMIN;
+                    loggedInUserId = id;
+                    ok = true;
+                }
+            } else if (selected.equals("Student")) {
+                if (!id.isEmpty()) {
+                    Document studentDoc = studentsCollection.find(new Document("_id", id)).first();
+                    if (studentDoc != null) { currentRole = Role.STUDENT; loggedInUserId = id; ok = true; }
+                }
+            } else if (selected.equals("Instructor")) {
+                if (!id.isEmpty()) {
+                    Document instDoc = instructorsCollection.find(new Document("_id", id)).first();
+                    if (instDoc != null) { currentRole = Role.INSTRUCTOR; loggedInUserId = id; ok = true; }
+                }
+            }
+
+            if (ok) {
+                JOptionPane.showMessageDialog(frame, "Logged in as " + selected);
+                setTabsForRole();
+                loginBtn.setEnabled(false);
+                logoutBtn.setEnabled(true);
+                idField.setEditable(false);
+                roleBox.setEnabled(false);
+            } else {
+                JOptionPane.showMessageDialog(frame, "Login failed (invalid ID for role)");
+            }
+        });
+
+        logoutBtn.addActionListener(e -> {
+            currentRole = Role.NONE;
+            loggedInUserId = null;
+            JOptionPane.showMessageDialog(frame, "Logged out");
+            setTabsForRole();
+            loginBtn.setEnabled(true);
+            logoutBtn.setEnabled(false);
+            idField.setEditable(true);
+            roleBox.setEnabled(true);
+        });
+
+        return p;
+    }
+
+    private void setTabsForRole() {
+        // disable all tabs first
+        for (int i = 0; i < tabs.getTabCount(); i++) tabs.setEnabledAt(i, false);
+
+        if (currentRole == Role.ADMIN) {
+            for (int i = 0; i < tabs.getTabCount(); i++) tabs.setEnabledAt(i, true);
+        } else if (currentRole == Role.INSTRUCTOR) {
+            // Allow instructor to see instructors, courses, grades and students (view)
+            int t;
+            t = tabs.indexOfTab("Instructors"); if (t >= 0) tabs.setEnabledAt(t, true);
+            t = tabs.indexOfTab("Courses"); if (t >= 0) tabs.setEnabledAt(t, true);
+            t = tabs.indexOfTab("Grades"); if (t >= 0) tabs.setEnabledAt(t, true);
+            t = tabs.indexOfTab("Students"); if (t >= 0) tabs.setEnabledAt(t, true);
+        } else if (currentRole == Role.STUDENT) {
+            // Student sees only their Students tab (to view own info), Courses and Grades
+            int t;
+            t = tabs.indexOfTab("Students"); if (t >= 0) tabs.setEnabledAt(t, true);
+            t = tabs.indexOfTab("Courses"); if (t >= 0) tabs.setEnabledAt(t, true);
+            t = tabs.indexOfTab("Grades"); if (t >= 0) tabs.setEnabledAt(t, true);
+        } else {
+            // No role -> nothing enabled
+        }
+    }
+
+    // --- DB operations used by GUI (these are independent implementations so original code remains intact) ---
+    private void createStudentFromGUI(String name, String dob, String address, String contact) {
+        String studentId = UUID.randomUUID().toString();
+        Document studentDoc = new Document("_id", studentId)
+                .append("name", name)
+                .append("dateOfBirth", dob)
+                .append("address", address)
+                .append("contact", contact)
+                .append("courses", new ArrayList<>());
+        studentsCollection.insertOne(studentDoc);
+    }
+
+    private String readStudentById(String studentId) {
+        Document studentDoc = studentsCollection.find(new Document("_id", studentId)).first();
+        if (studentDoc == null) return "Student not found.";
+        StringBuilder sb = new StringBuilder();
+        sb.append("ID: ").append(studentDoc.getString("_id")).append("");
+        sb.append("Name: ").append(studentDoc.getString("name")).append("");
+        sb.append("DOB: ").append(studentDoc.getString("dateOfBirth")).append("");
+        sb.append("Address: ").append(studentDoc.getString("address")).append("");
+        sb.append("Contact: ").append(studentDoc.getString("contact")).append("");
+        if (studentDoc.containsKey("gpa")) sb.append("GPA: ").append(studentDoc.getDouble("gpa")).append("");
+        java.util.List<String> courses = studentDoc.getList("courses", String.class);
+        if (courses != null && !courses.isEmpty()) {
+            sb.append("Courses:");
+            for (String c : courses) sb.append(" - ").append(c).append("");
+        }
+        return sb.toString();
+    }
+
+    private void updateStudentById(String studentId, String name, String dob, String address, String contact) {
+        Document studentDoc = studentsCollection.find(new Document("_id", studentId)).first();
+        if (studentDoc == null) return;
+        if (!name.isEmpty()) studentDoc.put("name", name);
+        if (!dob.isEmpty()) studentDoc.put("dateOfBirth", dob);
+        if (!address.isEmpty()) studentDoc.put("address", address);
+        if (!contact.isEmpty()) studentDoc.put("contact", contact);
+        studentsCollection.replaceOne(new Document("_id", studentId), studentDoc);
+    }
+
+    private void deleteStudentByName(String name) {
+        studentsCollection.deleteOne(new Document("name", name));
+    }
+
+    private String listAllStudents() {
+        StringBuilder sb = new StringBuilder();
+        MongoCursor<Document> cursor = studentsCollection.find().iterator();
+        try {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                sb.append("ID: ").append(doc.getString("_id")).append(" | Name: ").append(doc.getString("name")).append("");
+            }
+        } finally { cursor.close(); }
+        return sb.length() == 0 ? "No students found." : sb.toString();
+    }
+
+    // Instructor operations
+    private void createInstructorFromGUI(String name, String contact, String email) {
+        String instructorId = UUID.randomUUID().toString();
+        Document instructorDoc = new Document("_id", instructorId)
+                .append("name", name)
+                .append("contact", contact)
+                .append("email Address", email);
+        instructorsCollection.insertOne(instructorDoc);
+    }
+    private String readInstructorByName(String name) {
+        Document doc = instructorsCollection.find(new Document("name", name)).first();
+        if (doc == null) return "Instructor not found.";
+        return "ID: " + doc.getString("_id") + "Name: " + doc.getString("name") + "Contact: " + doc.getString("contact") + "Email: " + doc.getString("email Address");
+    }
+    private void deleteInstructorByName(String name) { instructorsCollection.deleteOne(new Document("name", name)); }
+    private String listAllInstructors() {
+        StringBuilder sb = new StringBuilder();
+        MongoCursor<Document> cursor = instructorsCollection.find().iterator();
+        try { while (cursor.hasNext()) { Document d = cursor.next(); sb.append(d.getString("_id")).append(" | ").append(d.getString("name")).append(""); } } finally { cursor.close(); }
+        return sb.length()==0?"No instructors":sb.toString();
+    }
+
+    // Courses
+    private void createCourseFromGUI(String name, String code, int credits, int hours) {
+        Document existing = coursesCollection.find(new Document("code", code)).first();
+        if (existing != null) return;
+        Document doc = new Document("_id", UUID.randomUUID().toString())
+                .append("name", name)
+                .append("code", code)
+                .append("credits", credits)
+                .append("hours", hours)
+                .append("registeredStudents", new ArrayList<>())
+                .append("numberOfStudents", 0);
+        coursesCollection.insertOne(doc);
+    }
+    private String readCourseByCode(String code) {
+        Document doc = coursesCollection.find(new Document("code", code)).first();
+        if (doc==null) return "Course not found.";
+        return "ID: " + doc.getString("_id") + "Name: " + doc.getString("name") + "Code: " + doc.getString("code") + "Credits: " + doc.getInteger("credits") + "Hours: " + doc.getInteger("hours");
+    }
+    private void deleteCourseByCode(String code) { coursesCollection.deleteOne(new Document("code", code)); }
+    private String listAllCourses() {
+        StringBuilder sb = new StringBuilder();
+        MongoCursor<Document> cursor = coursesCollection.find().iterator();
+        try { while (cursor.hasNext()) { Document d = cursor.next(); sb.append(d.getString("code")).append(" | ").append(d.getString("name")).append(""); } } finally { cursor.close(); }
+        return sb.length()==0?"No courses":sb.toString();
+    }
+
+    private void registerStudentToCourse(String studentId, String courseName, String studentName) {
+        Document courseDoc = coursesCollection.find(new Document("name", courseName)).first();
+        if (courseDoc != null) {
+            String courseId = courseDoc.getString("_id");
+            int current = courseDoc.getInteger("numberOfStudents", 0);
+            studentsCollection.updateOne(new Document("_id", studentId), new Document("$addToSet", new Document("courses", courseName)));
+            coursesCollection.updateOne(new Document("_id", courseId), new Document("$push", new Document("registeredStudents", new Document("studentId", studentId).append("studentName", studentName))).append("$set", new Document("numberOfStudents", current+1)));
+        } else {
+            // If not found, create minimal course and register
+            Document newCourse = new Document("_id", UUID.randomUUID().toString()).append("name", courseName).append("code", "auto").append("credits", 0).append("hours", 0).append("registeredStudents", new ArrayList<>()).append("numberOfStudents", 0);
+            coursesCollection.insertOne(newCourse);
+            registerStudentToCourse(studentId, courseName, studentName);
+        }
+    }
+
+    // Grades
+    private void createGradeFromGUI(String studentName, String studentId, String courseId, String courseName, double grade) {
+        String gradeId = UUID.randomUUID().toString();
+        Document gradeDoc = new Document("_id", gradeId).append("Student Name: ", studentName).append("studentId", studentId).append("courseId", courseId).append("courseName", courseName).append("grade", grade);
+        gradesCollection.insertOne(gradeDoc);
+    }
+    private String readGradeByStudentId(String studentId) {
+        Document studentDoc = studentsCollection.find(new Document("_id", studentId)).first();
+        if (studentDoc==null) return "Student not found.";
+        java.util.List<Document> gradeDocs = gradesCollection.find(new Document("studentId", studentId)).into(new ArrayList<>());
+        if (gradeDocs.isEmpty()) return "No grades found for this student.";
+        StringBuilder sb = new StringBuilder();
+        sb.append("Grades for ").append(studentDoc.getString("name")).append("");
+        for (Document g : gradeDocs) sb.append(g.getString("courseName")).append(" : ").append(g.getDouble("grade")).append("");
+        return sb.toString();
+    }
+
+    // Departments
+    private void createDepartmentFromGUI(String name, String coursesCommaSeparated) {
+        String id = UUID.randomUUID().toString();
+        java.util.List<String> courses = new ArrayList<>();
+        if (coursesCommaSeparated != null && !coursesCommaSeparated.isEmpty()) {
+            String[] parts = coursesCommaSeparated.split(",");
+            for (String p : parts) courses.add(p.trim());
+        }
+        Document doc = new Document("_id", id).append("name", name).append("courses", courses);
+        departmentsCollection.insertOne(doc);
+    }
+    private String readDepartmentByName(String name) {
+        Document doc = departmentsCollection.find(new Document("name", name)).first();
+        if (doc==null) return "Department not found.";
+        StringBuilder sb = new StringBuilder();
+        sb.append("ID: ").append(doc.getString("_id")).append("Name: ").append(doc.getString("name")).append("Courses:");
+        java.util.List<String> cs = doc.getList("courses", String.class);
+        if (cs != null) for (String c: cs) sb.append(" - ").append(c).append("");
+        return sb.toString();
+    }
+    private void deleteDepartmentByName(String name) { departmentsCollection.deleteOne(new Document("name", name)); }
+
+    public static void main(String[] args) {
+        // Run GUI on Event Dispatch Thread
+        SwingUtilities.invokeLater(() -> new SISApplicationGUI());
     }
 }
